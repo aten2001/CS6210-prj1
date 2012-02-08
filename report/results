@@ -1,0 +1,17 @@
+single threaded
+Total application elapsed time: 14.421339 s
+Matrix Size     Cpu Time                Elapsed Time
+                mean (std dev)          mean (std dev)
+128                   3029      (37)          3029      (37)
+200                  11336      (142)        11336      (142)
+256                  23764      (156)        23764      (156)
+512                 412528      (20620)     412528      (20620)
+
+128 threads
+Total application elapsed time: 11.116719 s
+Matrix Size     Cpu Time                Elapsed Time
+                mean (std dev)          mean (std dev)
+128                   4030      (1752)        4028      (1752)
+200                  14459      (3415)      464505      (409631)
+256                  32736      (8049)      936797      (214329)
+512                 579843      (59293)    9215725      (966977)
