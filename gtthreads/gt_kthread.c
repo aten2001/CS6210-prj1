@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <signal.h>
 #include <sched.h>
 #include <string.h>
@@ -17,6 +18,7 @@
 #include <setjmp.h>
 
 #include "gt_kthread.h"
+#include "gt_uthread.h"
 #include "gt_common.h"
 #include "gt_scheduler.h"
 #include "gt_signal.h"

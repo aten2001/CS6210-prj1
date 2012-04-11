@@ -9,6 +9,7 @@
 #define GT_KTHREAD_H_
 
 #include <setjmp.h>
+#include <signal.h>
 
 struct uthread;
 

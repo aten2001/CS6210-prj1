@@ -9,17 +9,16 @@
 #define GT_THREAD_H_
 
 #include "gt_typedefs.h"
-#include "gt_uthread.h"
 
 struct timeval;
+
 /* Options for gtthread_app_init().
  */
 /* choose a scheduler for your uthreads */
 typedef enum scheduler_type {
 	SCHEDULER_DEFAULT,
 	SCHEDULER_PCS, /* priority co-scheduler */
-	SCHEDULER_CFS
-/* completely fair scheduler */
+	SCHEDULER_CFS /* completely fair scheduler */
 } scheduler_type_t;
 
 typedef struct gtthread_options {
