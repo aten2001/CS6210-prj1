@@ -46,8 +46,12 @@ void uthread_attr_init(uthread_attr_t *attr)
 uthread_attr_t *uthread_attr_create()
 {
 	uthread_attr_t *attr = emalloc(sizeof(*attr));
-	uthread_attr_init(attr);
 	return attr;
+}
+
+void uthread_attr_destroy(uthread_attr_t *attr)
+{
+	free(attr);
 }
 
 /* performs "final - initial", puts result in `result`. returns 1 if answer is negative,

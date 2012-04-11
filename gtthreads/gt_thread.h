@@ -38,6 +38,9 @@ void gtthread_app_init(gtthread_options_t *options);
  * for manipulation, a la pthread_attr* functions */
 typedef struct uthread_attr uthread_attr_t;
 
+/* Create and destroy attributes */
+uthread_attr_t *uthread_attr_create(void);
+void uthread_attr_destroy(uthread_attr_t *attr);
 /* Initializes attribute to the defaults */
 void uthread_attr_init(uthread_attr_t *attr);
 

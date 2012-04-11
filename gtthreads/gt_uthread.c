@@ -158,6 +158,7 @@ int uthread_create(uthread_tid *u_tid, uthread_attr_t *attr,
 {
 	if (attr == NULL) {
 		attr = uthread_attr_create();
+		uthread_attr_init(attr);
 	}
 
 	checkpoint("%s", "Creating uthread...");

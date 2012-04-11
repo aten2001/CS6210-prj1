@@ -25,7 +25,6 @@ struct uthread_attr {
 	struct timeval timeslice_start; // last time of day, used for bookkeeping
 };
 
-struct uthread_attr *uthread_attr_create(void);
 void uthread_attr_set_elapsed_cpu_time(struct uthread_attr *attr);
 
 

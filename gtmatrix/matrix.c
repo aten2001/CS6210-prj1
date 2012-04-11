@@ -30,7 +30,7 @@ typedef struct uthread_arg {
 	square_matrix_t *a;
 	square_matrix_t *b;
 	square_matrix_t *c;
-	uthread_attr_t attr;
+	uthread_attr_t *attr;
 	uthread_tid tid;
 	struct timeval create_time;
 	struct timeval start_time;
@@ -163,7 +163,8 @@ int main(int argc, char **argv)
 			thread_arg->a = matrix_create(matrix_sizes[i], val);
 			thread_arg->b = matrix_create(matrix_sizes[i], val);
 			thread_arg->c = matrix_create(matrix_sizes[i], val);
-			uthread_attr_init(&thread_arg->attr);
+			thread_arg->attr = uthread_attr_create();
+			uthread_attr_init(thread_arg->attr);
 			thread_arg++;
 		}
 	}
@@ -184,7 +185,7 @@ int main(int argc, char **argv)
 
 #ifdef USE_GTTHREADS
 		printf("creating uthread\n");
-		uthread_create(&thread_args[i].tid, &thread_args[i].attr,
+		uthread_create(&thread_args[i].tid, thread_args[i].attr,
 		               &mulmat,
 		               &thread_args[i]);
 #else
@@ -234,7 +235,7 @@ int main(int argc, char **argv)
 
 #ifdef USE_GTTHREADS
 			/* CPU time as calculated by gtthreads */
-			uthread_attr_getcputime(&thread_arg->attr,
+			uthread_attr_getcputime(thread_arg->attr,
 			                        &thread_cpu_time);
 #else
 			/* single threaded, so cpu time = measured elapsed
