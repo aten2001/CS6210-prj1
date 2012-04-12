@@ -1,7 +1,7 @@
 CC	= gcc
 CPPFLAGS= -MMD -MP
 CFLAGS	= -pedantic -Wall -std=gnu99 -O2
-DEBUGFLAGS = -g -O -DDEBUG
+DEBUGFLAGS = -g -O0 -DDEBUG
 
 AR	= ar
 ARFLAGS	= r
