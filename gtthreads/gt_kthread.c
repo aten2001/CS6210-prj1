@@ -27,6 +27,8 @@
 #define KTHREAD_MAX_COUNT 16
 
 extern scheduler_t scheduler;
+extern int kthread_count;
+extern gt_spinlock_t kthread_count_lock;
 
 kthread_t *_kthread_cpu_map[KTHREAD_MAX_COUNT];
 gt_spinlock_t cpu_map_lock = GT_SPINLOCK_INITIALIZER;
@@ -59,8 +61,6 @@ int kthread_is_schedulable(kthread_t *k_ctx) {
 //		  k_ctx->state == KTHREAD_DONE));
 }
 
-extern int kthread_count;
-extern gt_spinlock_t kthread_count_lock;
 static void kthread_exit(kthread_t *k_ctx)
 {
 	checkpoint("k%d: exiting", k_ctx->cpuid);
