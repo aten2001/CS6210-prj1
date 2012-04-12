@@ -108,6 +108,7 @@ static void kthread_wait_for_uthread(kthread_t *k_ctx)
 		checkpoint("State is %d and can_exit is %d",
 		           k_ctx->state, k_ctx->can_exit);
 //		k_ctx->state = KTHREAD_RUNNABLE;
+		checkpoint("k%d: Calling setjmp", k_ctx->cpuid);
 		if (sigsetjmp(k_ctx->env, 1)) {
 			checkpoint("%s", "uthreads done");
 			assert(k_ctx->state == KTHREAD_DONE);

@@ -40,7 +40,7 @@ gt_spinlock_t uthread_init_lock = GT_SPINLOCK_INITIALIZER;
  * so this function launches back into the schedule() to schedule the next
  * available uthread.
  */
-static void uthread_context_func(int signo)
+void uthread_context_func(int signo)
 {
 	kthread_t *kthread = kthread_current_kthread();
 	uthread_t *uthread = kthread->current_uthread;
@@ -49,15 +49,17 @@ static void uthread_context_func(int signo)
 	checkpoint("k%d: u%d: uthread_context_func .....",
 	           kthread->cpuid, uthread->tid);
 	/* kthread->cur_uthread points to newly created uthread */
-	if (!sigsetjmp(uthread->env, 1)) {
-		/* In UTHREAD_INIT : saves the context and returns.
-		 * Otherwise, continues execution. */
-		/* DONT USE any locks here !! */
-		checkpoint("u%d: setting initial context", uthread->tid);
-
-		assert(uthread->state == UTHREAD_INIT);
-		uthread->state = UTHREAD_RUNNABLE;
-		return;
+	if (uthread->state == UTHREAD_INIT) {
+		checkpoint("u%d: Calling setjmp", uthread->tid);
+		if (!sigsetjmp(uthread->env, 1)) {
+			/* In UTHREAD_INIT : saves the context and returns.
+			 * Otherwise, continues execution. */
+			/* DONT USE any locks here !! */
+			checkpoint("u%d: setting initial context",
+				   uthread->tid);
+			uthread->state = UTHREAD_RUNNABLE;
+			return;
+		}
 	}
 
 	/* UTHREAD_RUNNING : siglongjmp was executed. */

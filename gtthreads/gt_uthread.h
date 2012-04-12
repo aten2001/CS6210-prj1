@@ -51,4 +51,6 @@ int uthread_init(uthread_t *uthread);
 /* Suspends the currently running uthread and causes the next to be scheduled */
 void uthread_yield();
 
+void uthread_context_func(int signo);
+
 #endif /* GT_UTHREAD_H_ */
