@@ -42,10 +42,14 @@ kthread_t *kthread_current_kthread()
 }
 
 /* sig handler to set the flag so we know we can exit */
-void kthread_exit_handler(int signo) {
+void kthread_exit_handler(int signo)
+{
 	kthread_t *k_ctx = kthread_current_kthread();
 	checkpoint("k%d: Exit handler", k_ctx->cpuid);
 	k_ctx->can_exit = 1;
+	if (k_ctx->state != KTHREAD_RUNNING) {
+		k_ctx->state = KTHREAD_DONE;
+	}
 }
 
 /* returns 1 if a kthread is schedulable, 0 otherwise */
