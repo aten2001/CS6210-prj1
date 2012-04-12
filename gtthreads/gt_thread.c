@@ -41,16 +41,13 @@ typedef struct kthread_node {
 	struct kthread_node *next;
 } kthread_node_t;
 kthread_node_t *kthread_list;
-gt_spinlock_t kthread_list_lock = GT_SPINLOCK_INITIALIZER;
 
 static void append_kthread(kthread_t *k_ctx) {
 	kthread_node_t *node = emalloc(sizeof(*node));
 	node->k_ctx = k_ctx;
 	node->next = NULL; // last element always NULL
-	gt_spin_lock(&kthread_list_lock);
 	node->next = kthread_list;
 	kthread_list = node;
-	gt_spin_unlock(&kthread_list_lock);
 }
 
 static int list_is_done(kthread_node_t *p)
@@ -69,9 +66,7 @@ static void wait_for_kthread_init_completion()
 	int done = 0;
 	while (!done) {
 		sched_yield();
-		gt_spin_lock(&kthread_list_lock);
 		done = list_is_done(kthread_list);
-		gt_spin_unlock(&kthread_list_lock);
 	}
 	checkpoint("%s", "All kthreads ready");
 }
