@@ -33,6 +33,16 @@ extern gt_spinlock_t kthread_count_lock;
 kthread_t *_kthread_cpu_map[KTHREAD_MAX_COUNT];
 gt_spinlock_t cpu_map_lock = GT_SPINLOCK_INITIALIZER;
 
+/* Toggled on when a child kthread is created, cloned, and ready to be
+ * scheduled. The parent should toggle it off before creating the next
+ * kthread. */
+volatile sig_atomic_t kthread_is_ready = 0;
+
+void kthread_ready_handler(int signo)
+{
+	kthread_is_ready = 1;
+}
+
 /* returns the currently running kthread */
 kthread_t *kthread_current_kthread()
 {
@@ -70,12 +80,12 @@ static void kthread_exit(kthread_t *k_ctx)
 	exit(EXIT_SUCCESS);
 }
 
-static void kthread_wait_for_uthread(kthread_t *k_ctx);
 /* signal handler for SIGSCHED. */
 void kthread_sched_handler(int signo)
 {
 	checkpoint("%s", "***Entering signal handler***");
 	kthread_t *k_ctx = kthread_current_kthread();
+	k_ctx->state = KTHREAD_RUNNING;
 	if (k_ctx->current_uthread)
 		uthread_attr_set_elapsed_cpu_time(k_ctx->current_uthread->attr);
 	schedule(k_ctx);
@@ -90,52 +100,29 @@ void kthread_sched_handler(int signo)
 }
 
 /* blocks until there is a uthread to schedule */
-static void kthread_wait_for_uthread(kthread_t *k_ctx)
+void kthread_wait_for_uthread(kthread_t *k_ctx)
 {
-	sigset_t mask, oldmask;
-	memset(&mask, 0, sizeof(mask));
-	memset(&oldmask, 0, sizeof(oldmask));
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGSCHED);
-	sigaddset(&mask, SIGUSR1);
-	sigprocmask(SIG_BLOCK, &mask, &oldmask);
-	struct timespec timeout = {0, 500000000};
-	int sig;
+	struct timespec interval = {
+		.tv_sec = 1,
+		.tv_nsec = 0
+	};
+
 	while (!(k_ctx->state == KTHREAD_DONE && k_ctx->can_exit)) {
 		checkpoint("State is %d and can_exit is %d",
 		           k_ctx->state, k_ctx->can_exit);
-		checkpoint("k%d: Calling setjmp", k_ctx->cpuid);
-		if (sigsetjmp(k_ctx->env, 1)) {
-			checkpoint("%s", "uthreads done");
-			assert(k_ctx->state == KTHREAD_DONE);
-			continue; // get here when all uthreads are finished
-		}
-
 		checkpoint("k%d: kthread (%d) waiting for first uthread",
 		           k_ctx->cpuid, k_ctx->tid);
-		sig = sigtimedwait(&mask, NULL, &timeout);
-		if (sig == SIGSCHED) {
-			checkpoint("k%d: kthread (%d) received first uthread",
-				   k_ctx->cpuid, k_ctx->tid);
-			k_ctx->state = KTHREAD_RUNNING;
-			kthread_sched_handler(sig);
-			checkpoint("k%d: returning from sched handler in wait(), state is %d",
-			           k_ctx->cpuid, k_ctx->state);
-		} else if (sig == SIGUSR1) {
-			kthread_exit_handler(sig);
-		}
+		/* Must use nanosleep so as not to interfere with SIGALRM
+		 * and other signals */
+		nanosleep(&interval, NULL);
 	}
 	checkpoint("k%d: exiting wait for uthread", k_ctx->cpuid);
 	kthread_exit(k_ctx);
 }
 
 /* main function is to set the cpu affinity */
-static void kthread_init(kthread_t *k_ctx)
+static void kthread_set_cpu_affinity(kthread_t *k_ctx)
 {
-	k_ctx->pid = getpid();
-	k_ctx->tid = syscall(SYS_gettid);
-	assert(k_ctx->pid == k_ctx->tid);
-
 	cpu_set_t cpu_affinity_mask;
 	CPU_ZERO(&cpu_affinity_mask);
 	CPU_SET(k_ctx->cpuid, &cpu_affinity_mask);
@@ -152,10 +139,14 @@ static void kthread_init(kthread_t *k_ctx)
 static int kthread_start(void *arg)
 {
 	kthread_t *k_ctx = arg;
-	kthread_init(k_ctx);
+	k_ctx->pid = getpid();
+	k_ctx->tid = k_ctx->pid;
+	kthread_set_cpu_affinity(k_ctx);
 	scheduler.kthread_init(k_ctx);
 	k_ctx->state = KTHREAD_RUNNABLE;
 	sig_install_handler_and_unblock(SIGUSR1, &kthread_exit_handler);
+	sig_install_handler_and_unblock(SIGSCHED, &kthread_sched_handler);
+	kill(getppid(), SIGUSR1); // signals that we are ready for scheduling
 	kthread_wait_for_uthread(k_ctx);
 	return 0;
 }
@@ -174,15 +165,9 @@ kthread_t *kthread_create(pid_t *tid, int lwp)
 	k_ctx->cpuid = lwp;
 	k_ctx->state = KTHREAD_INIT;
 
-	/* block SIGSCHED before cloning. This way no kthread will try to
-	 * schedule a uthread before it's ready. But note that we don't set
-	 * CLONE_SIGHAND in `flags`---so changes to signal handlers are not
-	 * shared after the clone.
-	 */
-	sig_block_signal(SIGSCHED);
-
-	/* block SIGUSR1 (the exit signal) for the same reason */
-	sig_block_signal(SIGUSR1);
+	/* Install the handler to be notified when this child kthread will
+	 * ready to be scheduled */
+	sig_install_handler_and_unblock(SIGUSR1, &kthread_ready_handler);
 
 	int flags = CLONE_VM | CLONE_FS | CLONE_FILES | SIGCHLD;
 	*tid = clone(kthread_start, (void *) stack, flags, (void *) k_ctx);
@@ -191,5 +176,9 @@ kthread_t *kthread_create(pid_t *tid, int lwp)
 		free(k_ctx);
 		return NULL;
 	}
+
+	while (!kthread_is_ready)
+		sleep(1);
+	kthread_is_ready = 0;
 	return k_ctx;
 }

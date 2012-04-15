@@ -28,7 +28,6 @@ typedef struct kthread {
 	pid_t tid;
 //	int uthread_count; 	// total number of uthreads runnable on this kthread
 	struct uthread *current_uthread;
-	sigjmp_buf env;
 	sig_atomic_t can_exit; // set when main enters gtthread_app_exit. This
 	                       // way the kthread knows there are no more
 	                       // uthreads that could possibly get created
@@ -47,6 +46,9 @@ kthread_t *kthread_current_kthread();
 int kthread_is_schedulable(kthread_t *k_ctx);
 
 void kthread_sched_handler(int signo);
+
+/* Blocks until a uthread is available to schedule */
+void kthread_wait_for_uthread(kthread_t *k_ctx);
 
 /* Inlines */
 /* apic-id of the cpu on which kthread is running */

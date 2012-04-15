@@ -32,10 +32,8 @@ gt_spinlock_t MALLOC_LOCK = GT_SPINLOCK_INITIALIZER;
 int kthread_count = 0;
 gt_spinlock_t kthread_count_lock = GT_SPINLOCK_INITIALIZER;
 
-/* The next several functions and data handle synchronizing with the child
- * kthreads after they are done initializing */
-
-/* linked list for keeping up with the kthreads created */
+/* Linked list for keeping track of the child kthreads, so we can signal them
+ * to exit */
 typedef struct kthread_node {
 	kthread_t *k_ctx;
 	struct kthread_node *next;
@@ -48,27 +46,6 @@ static void append_kthread(kthread_t *k_ctx) {
 	node->k_ctx = k_ctx;
 	node->next = kthread_list;
 	kthread_list = node;
-}
-
-static int list_is_done(kthread_node_t *p)
-{
-	while (p != NULL) {
-		if (!kthread_is_schedulable(p->k_ctx))
-			return 0;
-		p = p->next;
-	}
-	return 1;
-}
-
-static void wait_for_kthread_init_completion()
-{
-	checkpoint("%s", "Waiting for kthreads to init");
-	int done = 0;
-	while (!done) {
-		sched_yield();
-		done = list_is_done(kthread_list);
-	}
-	checkpoint("%s", "All kthreads ready");
 }
 
 void gtthread_options_init(gtthread_options_t *options)
@@ -116,7 +93,6 @@ static void _gtthread_app_init(gtthread_options_t *options)
 		gt_spin_unlock(&kthread_count_lock);
 		checkpoint("k%d: created", lwp);
 	}
-	wait_for_kthread_init_completion();
 }
 
 void wakeup(int signo)
@@ -126,16 +102,16 @@ void wakeup(int signo)
 
 void gtthread_app_exit()
 {
-	checkpoint("%s", "\n\n\nEntering app_exit");
+	checkpoint("%s", "Entering app_exit");
 	/* first we signal to the kthreads that it is OK to exit. At this point,
 	 * they shouldn't need to wait for any more uthreads to be created */
 	kthread_node_t *p = kthread_list;
 	while (p != NULL) {
+		checkpoint("k%d (%d): Sending exit signal", p->k_ctx->cpuid,
+			   p->k_ctx->pid);
 		kill(p->k_ctx->pid, SIGUSR1);
 		p = p->next;
 	}
-
-	sched_yield();
 
 	/* be sure to wake from sleep */
 	sig_install_handler_and_unblock(SIGCHLD, wakeup);

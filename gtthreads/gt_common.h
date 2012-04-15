@@ -29,8 +29,14 @@
 #define DEBUG_PRINT 0
 #endif
 #define checkpoint(fmt, ...) \
-        do { if (DEBUG_PRINT) fprintf(stderr, "%-25s%5d:%35s(): " fmt "\n", __FILE__ ":", \
-                                __LINE__, __func__, __VA_ARGS__); } while (0)
+        do { \
+		if (DEBUG_PRINT) { \
+			fprintf(stderr, \
+				"%-25s%5d:%35s(): " fmt "\n", __FILE__ ":", \
+				__LINE__, __func__, __VA_ARGS__); \
+			fflush(stderr); \
+		} \
+	} while (0)
 
 
 /* thread-safe malloc with failure */

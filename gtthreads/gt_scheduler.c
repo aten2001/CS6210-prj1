@@ -39,11 +39,11 @@ void schedule(kthread_t *old_k_ctx)
 	if (next_uthread == NULL) {
 		/* we're done with all our uhreads */
 		checkpoint("k%d: NULL next_uthread", k_ctx->cpuid);
-		checkpoint("k%d: Setting state to DONE", k_ctx->cpuid);
+		checkpoint("k%d: Setting state to DONE, wait for more uthreads",
+			   k_ctx->cpuid);
 		k_ctx->state = KTHREAD_DONE;
-		checkpoint("k%d: Calling longjmp", k_ctx->cpuid);
-		siglongjmp(k_ctx->env, 1);
-		return; // ? exit kthread? wait for more uthreads?
+		kthread_wait_for_uthread(k_ctx);
+		return;
 	}
 
 	/* note: current_uthread must be set before calling uthread_init() */
@@ -57,19 +57,16 @@ void schedule(kthread_t *old_k_ctx)
 
 	scheduler.resume_uthread(k_ctx); // possibly sets timer
 
-	checkpoint("k%d: u%d: longjumping to uthread",
-	           k_ctx->cpuid, next_uthread->tid);
-
 	if (first_time) {
 		uthread_context_func(0);
 	} else {
-		checkpoint("k%d: Calling longjmp", next_uthread->tid);
+		checkpoint("k%d: u%d: longjumping to uthread",
+			   k_ctx->cpuid, next_uthread->tid);
 		siglongjmp(next_uthread->env, 1); // jump to above sigsetjump
 	}
 	return;
 }
 
-void scheduler_switch(scheduler_t *s, scheduler_type_t t, int lwp_count);
 void scheduler_init(scheduler_t *scheduler, scheduler_type_t sched_type,
                     int lwp_count)
 {
