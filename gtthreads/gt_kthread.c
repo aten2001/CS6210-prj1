@@ -57,8 +57,7 @@ void kthread_exit_handler(int signo)
 /* returns 1 if a kthread is schedulable, 0 otherwise */
 int kthread_is_schedulable(kthread_t *k_ctx) {
 	return (!(k_ctx == NULL ||
-		  k_ctx->state == KTHREAD_INIT )); //||
-//		  k_ctx->state == KTHREAD_DONE));
+		  k_ctx->state == KTHREAD_INIT ));
 }
 
 static void kthread_exit(kthread_t *k_ctx)
@@ -84,11 +83,9 @@ void kthread_sched_handler(int signo)
 	if (k_ctx->state != KTHREAD_RUNNING) {
 		checkpoint("k%d: no uthread to run", k_ctx->cpuid);
 		checkpoint("k%d: exiting handler", k_ctx->cpuid);
-//		return;
 		kthread_wait_for_uthread(k_ctx);
 	}
 	gettimeofday(&k_ctx->current_uthread->attr->timeslice_start, NULL);
-//	sig_install_handler_and_unblock(SIGSCHED, &kthread_sched_handler);
 	checkpoint("k%d: exiting handler", k_ctx->cpuid);
 }
 
@@ -107,7 +104,6 @@ static void kthread_wait_for_uthread(kthread_t *k_ctx)
 	while (!(k_ctx->state == KTHREAD_DONE && k_ctx->can_exit)) {
 		checkpoint("State is %d and can_exit is %d",
 		           k_ctx->state, k_ctx->can_exit);
-//		k_ctx->state = KTHREAD_RUNNABLE;
 		checkpoint("k%d: Calling setjmp", k_ctx->cpuid);
 		if (sigsetjmp(k_ctx->env, 1)) {
 			checkpoint("%s", "uthreads done");
@@ -192,6 +188,7 @@ kthread_t *kthread_create(pid_t *tid, int lwp)
 	*tid = clone(kthread_start, (void *) stack, flags, (void *) k_ctx);
 	if (*tid < 0) {
 		perror("clone");
+		free(k_ctx);
 		return NULL;
 	}
 	return k_ctx;

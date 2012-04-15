@@ -40,12 +40,12 @@ typedef struct kthread_node {
 	kthread_t *k_ctx;
 	struct kthread_node *next;
 } kthread_node_t;
-kthread_node_t *kthread_list;
+
+kthread_node_t *kthread_list = NULL;
 
 static void append_kthread(kthread_t *k_ctx) {
 	kthread_node_t *node = emalloc(sizeof(*node));
 	node->k_ctx = k_ctx;
-	node->next = NULL; // last element always NULL
 	node->next = kthread_list;
 	kthread_list = node;
 }
