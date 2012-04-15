@@ -25,13 +25,15 @@ void schedule(kthread_t *old_k_ctx)
 {
 	checkpoint("k%d: scheduling", old_k_ctx->cpuid);
 	uthread_t *cur_uthread = scheduler.preempt_current_uthread(old_k_ctx);
-	if (cur_uthread != NULL && cur_uthread->state != UTHREAD_DONE) {
+	if (cur_uthread != NULL){
+	  if(cur_uthread->state != UTHREAD_DONE) {
 		checkpoint("u%d: Calling setjmp", cur_uthread->tid);
 		if (sigsetjmp(cur_uthread->env, 1)) {
 			sig_install_handler_and_unblock(SIGSCHED,
 			                                &kthread_sched_handler);
 			return; // resume uthread
 		}
+	  }
 	}
 
 	kthread_t *k_ctx = kthread_current_kthread();
