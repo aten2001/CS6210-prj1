@@ -15,9 +15,9 @@
 
 /* comment this out to make the application single threaded */
 #define USE_GTTHREADS
-#define THREAD_COUNT 128
+#define THREAD_COUNT 1
 const int matrix_sizes[] = {
-        128, 200, 256, 512
+        32 //, 200, 256, 512
 //        32, 64, 128, 256
         };
 
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 	gtthread_options_init(&opt);
 	opt.scheduler_type = SCHEDULER_CFS;	// completely fair
 //	opt.scheduler_type = SCHEDULER_PCS;	// priority
-//	opt.lwp_count = 1;
+	opt.lwp_count = 1;
 	gtthread_app_init(&opt);
 #endif
 

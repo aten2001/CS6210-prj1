@@ -80,11 +80,8 @@ void uthread_context_func(int signo)
 
 	checkpoint("u%d: task ended normally", uthread->tid);
 
-//	kill(getpid(), SIGSCHED);
-
 	/* schedule the next thread, if there is one */
 	schedule(kthread);
-
 
 	checkpoint("%s", "exiting context fcn");
 	return;
@@ -155,8 +152,7 @@ int uthread_init(uthread_t *uthread)
 
 
 int uthread_create(uthread_tid *u_tid, uthread_attr_t *attr,
-                   int(*start_routine)(void *),
-                   void *arg)
+                   int(*start_routine)(void *), void *arg)
 {
 	if (attr == NULL) {
 		attr = uthread_attr_create();
@@ -182,9 +178,9 @@ int uthread_create(uthread_tid *u_tid, uthread_attr_t *attr,
 	assert(kthread != NULL);
 	if (kthread->state != KTHREAD_RUNNING) {
 		/* our kthread is waiting for its first uthread. wake it up */
-		checkpoint("k%d: Sending SIGSCHED", kthread->cpuid);
+		checkpoint("u%d: k%d: Sending SIGSCHED to kthread",
+			   new_uthread->tid, kthread->cpuid);
 		kill(kthread->tid, SIGSCHED);
-		sched_yield();
 	}
 	checkpoint("u%d: created", new_uthread->tid);
 	return 0;
