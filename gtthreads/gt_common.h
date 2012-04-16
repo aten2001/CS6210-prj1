@@ -2,9 +2,6 @@
  * gt_common.h
  *
  * Useful macros, etc
- *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #ifndef GT_COMMON_H_

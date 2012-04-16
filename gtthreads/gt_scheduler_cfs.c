@@ -3,9 +3,6 @@
  *
  * Implements the completely fair scheduler, following the generic scheduler
  * interface
- *
- *  Created on: Feb 4, 2012
- *      Author: sam
  */
 
 #include <assert.h>

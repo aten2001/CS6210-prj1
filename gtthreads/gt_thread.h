@@ -1,8 +1,5 @@
 /*
  * gt_thread.h
- *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #ifndef GT_THREAD_H_

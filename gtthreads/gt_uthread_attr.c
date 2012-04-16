@@ -1,8 +1,6 @@
 /*
  * gt_uthread_attr.c
  *
- *  Created on: Feb 5, 2012
- *      Author: sam
  */
 
 #include <sys/time.h>

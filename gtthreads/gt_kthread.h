@@ -1,8 +1,6 @@
 /*
  * gt_kthread.h
  *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #ifndef GT_KTHREAD_H_

@@ -4,8 +4,6 @@
  * Implements the Completely Fair Scheduler, following the generic scheduling
  * interface
  *
- *  Created on: Feb 4, 2012
- *      Author: sam
  */
 
 #ifndef GT_CFS_H_

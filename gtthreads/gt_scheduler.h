@@ -1,8 +1,6 @@
 /*
  * gt_scheduler.h
  *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #ifndef GT_SCHEDULER_H_

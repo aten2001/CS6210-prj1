@@ -1,8 +1,6 @@
 /*
  * gt_scheduler.c
  *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #include <unistd.h>

@@ -3,8 +3,6 @@
  *
  * just here to make sure the compiler is happy
  *
- *  Created on: Feb 5, 2012
- *      Author: sam
  */
 
 #ifndef GT_TYPEDEFS_H_

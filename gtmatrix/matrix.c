@@ -1,10 +1,3 @@
-/*
- * matrix2.c
- *
- *  Created on: Feb 5, 2012
- *      Author: sam
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>

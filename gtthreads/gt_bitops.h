@@ -1,8 +1,3 @@
-/*
- * gt_bitops.h
- *
- */
-
 #ifndef GT_BITOPS_H_
 #define GT_BITOPS_H_
 

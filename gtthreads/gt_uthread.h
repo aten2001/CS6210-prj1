@@ -1,8 +1,6 @@
 /*
  * gt_uthread.h
  *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #ifndef GT_UTHREAD_H_

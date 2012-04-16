@@ -4,8 +4,6 @@
  * Chooses schedulers. This file knows about all the different schedulers that
  * can be offered.
  *
- *  Created on: Feb 4, 2012
- *      Author: sam
  */
 
 #include "gt_thread.h"

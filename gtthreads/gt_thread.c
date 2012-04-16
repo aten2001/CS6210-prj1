@@ -1,8 +1,5 @@
 /*
  * gt_thread.c
- *
- *  Created on: Feb 3, 2012
- *      Author: sam
  */
 
 #include <stdio.h>

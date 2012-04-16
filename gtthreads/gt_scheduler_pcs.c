@@ -4,8 +4,6 @@
  * Implements the priority co-scheduler, following the generic scheduling
  * interface
  *
- *  Created on: Feb 4, 2012
- *      Author: sam
  */
 
 #include <assert.h>
