@@ -8,7 +8,7 @@
 
 /* comment this out to make the application single threaded */
 #define USE_GTTHREADS
-#define THREAD_COUNT 32
+#define THREAD_COUNT 128
 const int matrix_sizes[] = {
 	64, 128, 256, 512
         };
