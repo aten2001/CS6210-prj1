@@ -10,8 +10,7 @@
 #define USE_GTTHREADS
 #define THREAD_COUNT 32
 const int matrix_sizes[] = {
-	128, 256, 512 //, 200, 256, 512
-       /* 32, 64, 128, 256, 512 */
+	64, 128, 256, 512
         };
 
 typedef struct square_matrix {
