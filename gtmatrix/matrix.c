@@ -15,10 +15,10 @@
 
 /* comment this out to make the application single threaded */
 #define USE_GTTHREADS
-#define THREAD_COUNT 1
+#define THREAD_COUNT 32
 const int matrix_sizes[] = {
-        32 //, 200, 256, 512
-//        32, 64, 128, 256
+	128, 256, 512 //, 200, 256, 512
+       /* 32, 64, 128, 256, 512 */
         };
 
 typedef struct square_matrix {
@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 	gtthread_options_init(&opt);
 	opt.scheduler_type = SCHEDULER_CFS;	// completely fair
 //	opt.scheduler_type = SCHEDULER_PCS;	// priority
-	opt.lwp_count = 1;
+	/* opt.lwp_count = 1; */
 	gtthread_app_init(&opt);
 #endif
 
@@ -275,12 +275,26 @@ int main(int argc, char **argv)
 		std_dev_elapsed[i] = sqrt(std_dev_elapsed[i]);
 	}
 
-	printf("Matrix Size\tCpu Time\t\tElapsed Time\n"
-		"\t\tmean (std dev)\t\tmean (std dev)\n");
+	int field_width = 24;
+	printf("%-*s" "%-*s" "%-*s" "\n",
+	       field_width, "Matrix Size",
+	       field_width, "CPU Time",
+	       field_width, "Elapsed Time"
+	       );
+	printf("%-*s" "%-*s" "%-*s" "\n",
+	       field_width, " ",
+	       field_width, "mean (std dev)",
+	       field_width, "mean (std dev)"
+	       );
+
+	char data[1024] = "";
 	for (int i = 0; i < matrix_sizes_count; ++i) {
-		printf("%d\t\t%10lu\t(%lu)\t%10lu\t(%lu)\n",
-		       matrix_sizes[i],
-		       means_cpu[i], std_dev_cpu[i] ,
-		       means_elapsed[i], std_dev_elapsed[i]);
+		printf("%-*d", field_width, matrix_sizes[i]);
+
+		sprintf(data, "%lu (%lu)", means_cpu[i], std_dev_cpu[i]);
+		printf("%-*s", field_width, data);
+
+		sprintf(data, "%lu (%lu)", means_elapsed[i], std_dev_elapsed[i]);
+		printf("%-*s\n", field_width, data);
 	}
 }
