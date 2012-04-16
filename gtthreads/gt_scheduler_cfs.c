@@ -21,8 +21,8 @@
 #include "rb_tree/red_black_tree.h"
 
 #define CFS_DEFAULT_PRIORITY 20
-#define CFS_DEFAULT_LATENCY_us 20000 /* 20 ms */
-#define CFS_MIN_GRANULARITY_us 4000 /* 4 ms */
+#define CFS_DEFAULT_LATENCY_us 40000 /* 40 ms */
+#define CFS_MIN_GRANULARITY_us 20000 /* 20 ms */
 
 /* global singleton scheduler */
 extern scheduler_t scheduler;
@@ -115,6 +115,7 @@ uthread_t *cfs_pick_next_uthread(kthread_t *k_ctx)
 	checkpoint("k%d: CFS: Picking next uthread", k_ctx->cpuid);
 
 	cfs_kthread_t *cfs_kthread = cfs_get_kthread(k_ctx);
+	assert(cfs_kthread != NULL);
 	gt_spin_lock(&cfs_kthread->lock);
 	rb_red_blk_node *min = RBDeleteMin(cfs_kthread->tree);
 	assert(min != cfs_kthread->tree->nil);
@@ -126,7 +127,7 @@ uthread_t *cfs_pick_next_uthread(kthread_t *k_ctx)
 	}
 
 	cfs_uthread_t *min_cfs_uthread = min->info;
-	checkpoint("k%d: u%d: Choosing uthread with key %lu",
+	checkpoint("k%d: u%d: Choosing uthread with vruntime %lu",
 	           cfs_kthread->k_ctx->cpuid, min_cfs_uthread->uthread->tid,
 	           min_cfs_uthread->key);
 	cfs_kthread->current_cfs_uthread = min_cfs_uthread;
@@ -135,7 +136,7 @@ uthread_t *cfs_pick_next_uthread(kthread_t *k_ctx)
 	return min_cfs_uthread->uthread;
 }
 
-void cfs_update_vruntime(cfs_uthread_t *cfs_uthread)
+static void cfs_update_vruntime(cfs_uthread_t *cfs_uthread)
 {
 	struct timeval *cputime = &cfs_uthread->uthread->attr->execution_time;
 	unsigned long cputime_us = cfs_tv2us(cputime);
@@ -165,6 +166,8 @@ uthread_t *cfs_preemt_current_uthread(kthread_t *k_ctx)
 	cfs_update_vruntime(cfs_cur_uthread);
 	cfs_cur_uthread->key = cfs_cur_uthread->vruntime
 	        - cfs_kthread->min_vruntime;
+
+	checkpoint("u%d: CFS: insert into rb tree", cur_uthread->tid);
 	RBTreeInsert(cfs_kthread->tree, cfs_cur_uthread->node);
 
 	return cur_uthread;
@@ -221,7 +224,7 @@ static kthread_t *cfs_uthread_init(uthread_t *uthread)
 
 	checkpoint("u%d: CFS: Creating node", uthread->tid);
 	cfs_uthread->node = RBNodeCreate(&cfs_uthread->key, cfs_uthread);
-	checkpoint("u%d: CFS: Inserting node", uthread->tid);
+	checkpoint("u%d: CFS: Insert into rb tree", cfs_uthread->uthread->tid);
 	RBTreeInsert(cfs_kthread->tree, cfs_uthread->node);
 
 	return cfs_kthread->k_ctx;
@@ -260,6 +263,7 @@ static void cfs_rb_destroy_info(void *info)
  * called */
 void cfs_kthread_init(kthread_t *k_ctx)
 {
+	checkpoint("k%d: CFS: init kthread", k_ctx->cpuid);
 	gt_spin_lock(&scheduler.lock);
 	cfs_kthread_t *cfs_kthread = cfs_get_kthread(k_ctx);
 	gt_spinlock_init(&cfs_kthread->lock);
