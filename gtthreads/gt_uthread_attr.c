@@ -97,8 +97,7 @@ void uthread_attr_set_elapsed_cpu_time(uthread_attr_t *attr)
 	           kthread_current_kthread()->current_uthread->tid);
 	struct timeval now, elapsed;
 	while (gettimeofday(&now, NULL));
-	int neg = timeval_subtract(&elapsed, &now, &attr->timeslice_start);
-	assert(!neg);
+	timeval_subtract(&elapsed, &now, &attr->timeslice_start);
 	timeval_add(&attr->execution_time,
 	            &attr->execution_time, &elapsed);
 	checkpoint("Execution time: %ld.%06ld s",
