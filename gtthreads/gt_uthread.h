@@ -11,6 +11,7 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <ucontext.h>
 
 #include "gt_typedefs.h"
 
@@ -42,8 +43,7 @@ typedef struct uthread {
 	int (*start_routine)(void *);
 	void *arg;
 
-	sigjmp_buf env;
-	stack_t stack;
+	ucontext_t context;
 } uthread_t;
 
 int uthread_init(uthread_t *uthread);

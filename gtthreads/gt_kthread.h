@@ -8,8 +8,8 @@
 #ifndef GT_KTHREAD_H_
 #define GT_KTHREAD_H_
 
-#include <setjmp.h>
 #include <signal.h>
+#include <ucontext.h>
 
 struct uthread;
 
@@ -26,11 +26,9 @@ typedef struct kthread {
 	unsigned cpu_apic_id;
 	pid_t pid;
 	pid_t tid;
-//	int uthread_count; 	// total number of uthreads runnable on this kthread
 	struct uthread *current_uthread;
-	sig_atomic_t can_exit; // set when main enters gtthread_app_exit. This
-	                       // way the kthread knows there are no more
-	                       // uthreads that could possibly get created
+	ucontext_t sched_ctx;
+	char sched_ctx_stack[2048];
 } kthread_t;
 
 

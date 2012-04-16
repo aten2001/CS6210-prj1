@@ -11,11 +11,12 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/time.h>
+#include <time.h>
 #include <signal.h>
 #include <sched.h>
 #include <string.h>
 #include <assert.h>
-#include <setjmp.h>
+#include <ucontext.h>
 
 #include "gt_kthread.h"
 #include "gt_uthread.h"
@@ -53,16 +54,7 @@ kthread_t *kthread_current_kthread()
 	return k_ctx;
 }
 
-/* sig handler to set the flag so we know we can exit */
-void kthread_exit_handler(int signo)
-{
-	kthread_t *k_ctx = kthread_current_kthread();
-	checkpoint("k%d: Exit handler", k_ctx->cpuid);
-	k_ctx->can_exit = 1;
-	if (k_ctx->state != KTHREAD_RUNNING) {
-		k_ctx->state = KTHREAD_DONE;
-	}
-}
+int can_exit = 0;
 
 /* returns 1 if a kthread is schedulable, 0 otherwise */
 int kthread_is_schedulable(kthread_t *k_ctx) {
@@ -86,15 +78,21 @@ void kthread_sched_handler(int signo)
 	checkpoint("%s", "***Entering signal handler***");
 	kthread_t *k_ctx = kthread_current_kthread();
 	k_ctx->state = KTHREAD_RUNNING;
-	if (k_ctx->current_uthread)
+	if (k_ctx->current_uthread) {
 		uthread_attr_set_elapsed_cpu_time(k_ctx->current_uthread->attr);
-	schedule(k_ctx);
-	k_ctx = kthread_current_kthread(); // not sure if i trust my stack; call again
-	if (k_ctx->state != KTHREAD_RUNNING) {
-		checkpoint("k%d: no uthread to run", k_ctx->cpuid);
-		checkpoint("k%d: exiting handler", k_ctx->cpuid);
-		kthread_wait_for_uthread(k_ctx);
+
+		if (getcontext(&k_ctx->sched_ctx) == -1)
+			fail_perror("getcontext");
+		makecontext(&k_ctx->sched_ctx, schedule, 0, 0);
+		checkpoint("%s", "Swapping to schedule context");
+		if (swapcontext(&k_ctx->current_uthread->context,
+				&k_ctx->sched_ctx) == -1)
+			fail_perror("swapcontext");
+	} else {
+		schedule();
 	}
+
+	k_ctx = kthread_current_kthread(); // not sure if i trust my stack; call again
 	gettimeofday(&k_ctx->current_uthread->attr->timeslice_start, NULL);
 	checkpoint("k%d: exiting handler", k_ctx->cpuid);
 }
@@ -107,9 +105,9 @@ void kthread_wait_for_uthread(kthread_t *k_ctx)
 		.tv_nsec = 0
 	};
 
-	while (!(k_ctx->state == KTHREAD_DONE && k_ctx->can_exit)) {
+	while (!(k_ctx->state == KTHREAD_DONE && can_exit)) {
 		checkpoint("State is %d and can_exit is %d",
-		           k_ctx->state, k_ctx->can_exit);
+		           k_ctx->state, can_exit);
 		checkpoint("k%d: kthread (%d) waiting for first uthread",
 		           k_ctx->cpuid, k_ctx->tid);
 		/* Must use nanosleep so as not to interfere with SIGALRM
@@ -118,6 +116,14 @@ void kthread_wait_for_uthread(kthread_t *k_ctx)
 	}
 	checkpoint("k%d: exiting wait for uthread", k_ctx->cpuid);
 	kthread_exit(k_ctx);
+}
+
+static void kthread_init_context(kthread_t *kthread)
+{
+	kthread->sched_ctx.uc_stack.ss_sp = kthread->sched_ctx_stack;
+	kthread->sched_ctx.uc_stack.ss_size = sizeof(kthread->sched_ctx_stack);
+	kthread->sched_ctx.uc_stack.ss_flags = 0;
+	kthread->sched_ctx.uc_link = NULL;
 }
 
 /* main function is to set the cpu affinity */
@@ -142,9 +148,9 @@ static int kthread_start(void *arg)
 	k_ctx->pid = getpid();
 	k_ctx->tid = k_ctx->pid;
 	kthread_set_cpu_affinity(k_ctx);
+	kthread_init_context(k_ctx);
 	scheduler.kthread_init(k_ctx);
 	k_ctx->state = KTHREAD_RUNNABLE;
-	sig_install_handler_and_unblock(SIGUSR1, &kthread_exit_handler);
 	sig_install_handler_and_unblock(SIGSCHED, &kthread_sched_handler);
 	kill(getppid(), SIGUSR1); // signals that we are ready for scheduling
 	kthread_wait_for_uthread(k_ctx);

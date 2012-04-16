@@ -62,7 +62,7 @@ void sched_type_scheduler_init(scheduler_type_t scheduler_type, int lwp_count);
 /* not implemented by scheduler objects */
 void scheduler_init(scheduler_t *scheduler, scheduler_type_t scheduler_type, int lwp_count);
 void scheduler_destroy(scheduler_t *scheduler);
-void schedule(struct kthread *k_ctx);
+void schedule(void);
 void scheduler_switch(scheduler_t *s, scheduler_type_t t, int lwp_count);
 
 #endif /* GT_SCHEDULER_H_ */

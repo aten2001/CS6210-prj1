@@ -9,8 +9,8 @@
 #include <sys/syscall.h>
 #include <assert.h>
 #include <sched.h>
-#include <setjmp.h>
 #include <string.h>
+#include <ucontext.h>
 
 #include "gt_uthread.h"
 #include "gt_kthread.h"
@@ -21,7 +21,6 @@
 #include "gt_signal.h"
 
 #define UTHREAD_DEFAULT_SSIZE (16 * 1024 )
-#define UTHREAD_SIGSTACK SIGUSR2
 
 /* global scheduler */
 extern scheduler_t scheduler;
@@ -44,44 +43,24 @@ void uthread_context_func(int signo)
 {
 	kthread_t *kthread = kthread_current_kthread();
 	uthread_t *uthread = kthread->current_uthread;
-	assert(kthread != NULL);
-	assert(uthread != NULL);
 	checkpoint("k%d: u%d: uthread_context_func .....",
 	           kthread->cpuid, uthread->tid);
-	/* kthread->cur_uthread points to newly created uthread */
-	if (uthread->state == UTHREAD_INIT) {
-		checkpoint("u%d: Calling setjmp", uthread->tid);
-		if (!sigsetjmp(uthread->env, 1)) {
-			/* In UTHREAD_INIT : saves the context and returns.
-			 * Otherwise, continues execution. */
-			/* DONT USE any locks here !! */
-			checkpoint("u%d: setting initial context",
-				   uthread->tid);
-			uthread->state = UTHREAD_RUNNABLE;
-			return;
-		}
-	}
-
-	/* UTHREAD_RUNNING : siglongjmp was executed. */
-	sig_install_handler_and_unblock(SIGSCHED, &kthread_sched_handler);
-	assert(uthread->state == UTHREAD_RUNNING);
-	checkpoint("u%d: longjmp was executed, starting task for first time",
-	           uthread->tid);
 
 	/* Execute the new_uthread task */
 	while(gettimeofday(&uthread->attr->timeslice_start, NULL));
 	checkpoint("u%d: Start time: %ld.%06ld s", uthread->tid,
 	           uthread->attr->timeslice_start.tv_sec,
 	           uthread->attr->timeslice_start.tv_usec);
+	uthread->state = UTHREAD_RUNNING;
 	uthread->start_routine(uthread->arg);
+	uthread->state = UTHREAD_DONE;
 	checkpoint("u%d: getting final elapsed time", uthread->tid);
 	uthread_attr_set_elapsed_cpu_time(uthread->attr);
-	uthread->state = UTHREAD_DONE;
 
 	checkpoint("u%d: task ended normally", uthread->tid);
 
 	/* schedule the next thread, if there is one */
-	schedule(kthread);
+	schedule();
 
 	checkpoint("%s", "exiting context fcn");
 	return;
@@ -90,62 +69,19 @@ void uthread_context_func(int signo)
 /* Initializes uthread. Sets up a stack through the use of SIGUSR2. Must be
  * called *after* the kthread it is going to be scheduled on has been
  * initialized  */
-int uthread_init(uthread_t *uthread)
+int uthread_makecontext(uthread_t *uthread)
 {
 	checkpoint("u%d: Initializing uthread...", uthread->tid);
-	stack_t oldstack;
-	sigset_t set, oldset;
-	struct sigaction act, oldact;
 
-	gt_spin_lock(&uthread_init_lock);
-
-	/* Allocate new stack for uthread */
-	uthread->stack.ss_flags = 0; /* Stack enabled for signal handling */
-	uthread->stack.ss_size = UTHREAD_DEFAULT_SSIZE;
-	uthread->stack.ss_sp = emalloc(uthread->stack.ss_size);
-
-	/* Register a signal(SIGSTACK) for alternate stack */
-	memset(&act, 0, sizeof(act));
-	act.sa_handler = &uthread_context_func;
-	act.sa_flags = (SA_ONSTACK | SA_RESTART);
-	if (sigaction(UTHREAD_SIGSTACK, &act, &oldact))
-		fail_perror("uthread SIGSTACK handler install");
-
-	/* Install alternate signal stack (for SIGSTACK) */
-	checkpoint("u%d: Installing alternate stack", uthread->tid);
-	if (sigaltstack(&(uthread->stack), &oldstack))
-		fail_perror("uthread sigaltstack install");
-
-	/* Unblock the signal(SIGSTACK) */
-	sigemptyset(&set);
-	sigaddset(&set, UTHREAD_SIGSTACK);
-	sigprocmask(SIG_UNBLOCK, &set, &oldset);
-
-	/* Note that the SIGSTACK handler expects kthread->current_uthread
-	 * to point to this newly created thread. This implies that this
-	 * must be called from within a running kthread */
-	checkpoint("u%d: raising SIGSTACK", uthread->tid);
-	if (kill(getpid(), UTHREAD_SIGSTACK))
-		fail_perror("kill");
-	assert(uthread != NULL);
-	assert(uthread->state == UTHREAD_RUNNABLE);
-	checkpoint("u%d: returned from SIGSTACK", uthread->tid);
-
-	/* Block the signal(SIGSTACK) */
-	sigemptyset(&set);
-	sigaddset(&set, UTHREAD_SIGSTACK);
-	sigprocmask(SIG_BLOCK, &set, &oldset);
-	if (sigaction(UTHREAD_SIGSTACK, &oldact, NULL))
-		fail_perror("uthread SIGSTACK revert");
-
-	/* Disable the stack for signal(SIGSTACK) handling */
-	uthread->stack.ss_flags = SS_DISABLE;
-
-	/* Restore the old stack/signal handling */
-	if (sigaltstack(&oldstack, NULL))
-		fail_perror("uthread sigaltstack revert");
-
-	gt_spin_unlock(&uthread_init_lock);
+	/* Initialize new context for uthread */
+	ucontext_t *u_ctx = &uthread->context;
+	if (getcontext(u_ctx) == -1)
+		fail_perror("getcontext");
+	u_ctx->uc_stack.ss_size = UTHREAD_DEFAULT_SSIZE;
+	u_ctx->uc_stack.ss_sp = emalloc(u_ctx->uc_stack.ss_size);
+	u_ctx->uc_stack.ss_flags = 0;
+	u_ctx->uc_link = NULL;
+	makecontext(u_ctx, (void (*)(void)) uthread_context_func, 1, 0);
 	checkpoint("u%d: initialized", uthread->tid);
 	return 0;
 }
@@ -171,11 +107,10 @@ int uthread_create(uthread_tid *u_tid, uthread_attr_t *attr,
 	gt_spin_unlock(&uthread_count_lock);
 	*u_tid = new_uthread->tid;
 
-//	uthread_init(new_uthread); // init from running kthread
-	checkpoint("%s", "sending to scheduler");
+	new_uthread->state = UTHREAD_RUNNABLE;
 	kthread_t *kthread = scheduler.uthread_init(new_uthread);
-	checkpoint("%s", "scheduler init returned");
 	assert(kthread != NULL);
+	uthread_makecontext(new_uthread);
 	if (kthread->state != KTHREAD_RUNNING) {
 		/* our kthread is waiting for its first uthread. wake it up */
 		checkpoint("u%d: k%d: Sending SIGSCHED to kthread",
